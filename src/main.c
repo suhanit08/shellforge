@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 typedef struct {
     char *args[64];
@@ -34,10 +36,7 @@ int main(void) {
         if (getline(&line, &len, stdin) == -1)
             break;
 
-        if (strlen(line) > 0 &&
-            line[strlen(line) - 1] == '\n') {
-            line[strlen(line) - 1] = '\0';
-        }
+        line[strcspn(line, "\n")] = '\0';
 
         parse_command(line, &cmd);
 
@@ -47,11 +46,26 @@ int main(void) {
         if (strcmp(cmd.args[0], "exit") == 0)
             break;
 
-        printf(
-            "Structure Log -> command : %s | Arguments found: %d\n",
-            cmd.args[0],
-            cmd.count - 1
-        );
+        /* Create child process */
+        pid_t pid = fork();
+
+        if (pid == 0) {
+            /* Child process */
+
+            execvp(cmd.args[0], cmd.args);
+
+            /* Only reached if execvp fails */
+            perror("Command execution error");
+            exit(1);
+        }
+        else if (pid > 0) {
+            /* Parent process waits for child */
+            waitpid(pid, NULL, 0);
+        }
+        else {
+            /* fork() failed */
+            perror("Fork creation error");
+        }
     }
 
     free(line);
