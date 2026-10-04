@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,36 +32,57 @@ int main(void) {
     Command cmd;
 
     while (1) {
+        /* Display shell prompt */
         printf("shellforge$ ");
         fflush(stdout);
 
-        if (getline(&line, &len, stdin) == -1)
+        /* Ctrl + D exits the shell */
+        if (getline(&line, &len, stdin) == -1) {
             break;
+        }
 
+        /* Remove newline character */
         line[strcspn(line, "\n")] = '\0';
 
+        /* Parse the command */
         parse_command(line, &cmd);
 
-        if (cmd.count == 0)
+        /* If no command was entered */
+        if (cmd.count == 0) {
             continue;
+        }
 
-        if (strcmp(cmd.args[0], "exit") == 0)
+        /* Exit command */
+        if (strcmp(cmd.args[0], "exit") == 0) {
             break;
+        }
 
         /* Create child process */
         pid_t pid = fork();
 
         if (pid == 0) {
-            /* Child process */
+            /* CHILD PROCESS */
 
+            /*
+             * Execute the command.
+             *
+             * Example:
+             * ls -l
+             *
+             * cmd.args[0] = "ls"
+             * cmd.args[1] = "-l"
+             * cmd.args[2] = NULL
+             */
             execvp(cmd.args[0], cmd.args);
 
-            /* Only reached if execvp fails */
+            /* Reached only if execvp() fails */
             perror("Command execution error");
             exit(1);
         }
         else if (pid > 0) {
-            /* Parent process waits for child */
+            /* PARENT PROCESS */
+
+            /* Wait for child to finish */
             waitpid(pid, NULL, 0);
         }
         else {
@@ -68,7 +91,9 @@ int main(void) {
         }
     }
 
+    /* Free dynamically allocated input buffer */
     free(line);
 
     return 0;
 }
+         
